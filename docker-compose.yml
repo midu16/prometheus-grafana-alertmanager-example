@@ -3,6 +3,7 @@ version: '3.1'
 volumes:
     prometheus_data: {}
     grafana_data: {}
+    loki_data: {}
 
 services:
 
@@ -10,7 +11,7 @@ services:
     image: prom/prometheus:v2.0.0
     volumes:
       - ./prometheus/:/etc/prometheus/
-      - prometheus_data:/prometheus
+      - /appl/prometheus_data:/prometheus
     command:
       - '--config.file=/etc/prometheus/prometheus.yml'
       - '--storage.tsdb.path=/prometheus'
@@ -57,6 +58,14 @@ services:
       - '-storage.path=/alertmanager'
     deploy:
       mode: global
+    deploy:
+      resources:
+        limits:
+          cpus: '0.60'
+          memory: 512M
+        reservations:
+          cpus: '0.30'
+          memory: 128M
 
   cadvisor:
     image: google/cadvisor
@@ -70,6 +79,14 @@ services:
     restart: always
     deploy:
       mode: global
+    deploy:
+      resources:
+        limits:
+          cpus: '0.60'
+          memory: 512M
+        reservations:
+          cpus: '0.30'
+          memory: 128M
 
   grafana:
     image: grafana/grafana:5.4.2
@@ -78,11 +95,34 @@ services:
     ports:
       - 3000:3000
     volumes:
-      - grafana_data:/var/lib/grafana
+      - /appl/grafana_data:/var/lib/grafana
       - ./grafana/dashboards:/var/lib/grafana/dashboards
       - ./grafana/provisioning:/etc/grafana/provisioning
     env_file:
       - config.monitoring
+    
+  loki:
+    image: grafana/loki:1.5.0
+    depends_on:
+      - grafana
+    ports:
+      - 3100:3100
+    volumes:
+      - /appl/loki-data:/loki
+    logging:
+      driver: loki
+      options:
+        loki-url: "http://loki:3100/loki/api/v1/push"
+        loki-retries: "5"
+        loki-batch-size: "400"
+    deploy:
+      resources:
+        limits:
+          cpus: '0.60'
+          memory: 512M
+        reservations:
+          cpus: '0.30'
+          memory: 128M
 
   blackbox_exporter:
     image: prom/blackbox-exporter:v0.10.0
@@ -93,3 +133,11 @@ services:
     command:
       - '--config.file=/etc/blackboxexporter/config.yml'
     restart: always
+    deploy:
+      resources:
+        limits:
+          cpus: '0.60'
+          memory: 512M
+        reservations:
+          cpus: '0.30'
+          memory: 128M
